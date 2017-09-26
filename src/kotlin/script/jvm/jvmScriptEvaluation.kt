@@ -2,13 +2,15 @@ package kotlin.script.jvm
 
 import kotlin.reflect.KClass
 import kotlin.script.*
+import kotlin.script.host.BasicScriptingHost
+import kotlin.script.host.ScriptRunner
 
-open class JvmBasicScriptingHost<ScriptBase: Any, SM: JvmScriptMetadata, E: ScriptEvaluationEnvironment, in CS: JvmCompiledScript<ScriptBase>>(
-        analyser: ScriptAnalyzer<SM>,
-        compiler: JvmScriptCompiler<SM, E>,
-        runner: ScriptRunner<ScriptBase, E, CS>,
+open class JvmBasicScriptingHost<ScriptBase: Any, CC: JvmCompilerConfiguration, out E: ScriptEvaluationEnvironment, in CS: JvmCompiledScript<ScriptBase>>(
+        configurationExtractor: ConfigurationExtractor<CC>,
+        compiler: JvmScriptCompiler<CC>,
+        runner: ScriptRunner<ScriptBase>,
         override val environment: E
-): ScriptingHost<ScriptBase, SM, E, CS>(analyser, compiler, runner)
+): BasicScriptingHost<ScriptBase, CC, E, CS>(configurationExtractor, compiler, runner)
 
 
 class ReplEvalEnvironment(
@@ -20,17 +22,17 @@ class ReplEvalEnvironment(
         emptyList())
 
 
-open class JvmReplScriptingHost<ScriptBase: Any, SM: JvmScriptMetadata>(
-        analyser: ScriptAnalyzer<SM>,
-        compiler: JvmScriptCompiler<SM, ReplEvalEnvironment>,
-        runner: ScriptRunner<ScriptBase, ReplEvalEnvironment, JvmCompiledScript<ScriptBase>>,
+open class JvmReplScriptingHost<ScriptBase: Any, CC: JvmCompilerConfiguration>(
+        configurationExtractor: ConfigurationExtractor<CC>,
+        compiler: JvmScriptCompiler<CC>,
+        runner: ScriptRunner<ScriptBase>,
         bindings: LinkedHashMap<String, Any?>
-): ScriptingHost<ScriptBase, SM, ReplEvalEnvironment, JvmCompiledScript<ScriptBase>>(analyser, compiler, runner)
+): BasicScriptingHost<ScriptBase, CC, ReplEvalEnvironment, JvmCompiledScript<ScriptBase>>(configurationExtractor, compiler, runner)
 {
     override val environment = ReplEvalEnvironment(bindings)
 
-    override fun updateEnvironment(script: ScriptSource, meta: SM, compiled: JvmCompiledScript<ScriptBase>, res: Any) {
-        super.updateEnvironment(script, meta, compiled, res)
-        environment.mutableReceivers.add(compiled.compiledClass)
+    override fun updateEnvironment(config: CC, scriptObject: ScriptBase, res: Any?) {
+        super.updateEnvironment(config, scriptObject, res)
+        environment.mutableReceivers.add(scriptObject.javaClass.kotlin)
     }
 }

@@ -1,7 +1,7 @@
 package kotlin.script
 
 import java.net.URL
-import kotlin.reflect.KClass
+import kotlin.reflect.KType
 
 interface ScriptSource {
     val location: URL?
@@ -12,40 +12,55 @@ interface ScriptSource {
     data class Location(val start: Position, val end: Position? = null)
 }
 
+interface ScriptSourceFragments {
+    val originalSource: ScriptSource
 
-interface ScriptMetadata {
+    val fragments: Iterable<ScriptSource.Range>?
+}
 
-    interface Dependency
+open class ProvidedDeclarations(
+        val implicitReceivers: List<KType>, // previous scripts, etc.
+        val globals: Map<String, KType> // external variables
+)
 
-    open class Restrictions {
-        data class Rule(
+open class ScriptSignature(
+        val scriptBase: KType,
+        val providedDeclarations: ProvidedDeclarations
+)
+
+open class ResolvingRestrictions {
+    data class Rule(
             val allow: Boolean,
             val pattern: String // TODO: elaborate
-        )
+    )
 
-        val rules: Iterable<Rule> = arrayListOf()
-    }
+    val rules: Iterable<Rule> = arrayListOf()
+}
 
-    val sourceRanges: Iterable<ScriptSource.Range>?
+interface ScriptDependency {
+    // anything generic here?
+}
 
-    val scriptBase: KClass<*>
+interface CompilerConfiguration {
 
-    val annotations: Iterable<Annotation>
+    val scriptSourceFragments: ScriptSourceFragments
+
+    val scriptSignature: ScriptSignature
 
     val importedPackages: Iterable<String>
 
-    val restrictions: Restrictions
+    val restrictions: ResolvingRestrictions
 
     val importedScripts: Iterable<ScriptSource>
 
-    val dependencies: Iterable<Dependency>
+    val dependencies: Iterable<ScriptDependency>
 
     val compilerOptions: Iterable<String> // CommonCompilerOptions?
 }
 
-
 open class ScriptEvaluationEnvironment(
-    val implicitReceivers: List<KClass<*>>, // previous scripts, etc.
-    val bindings: LinkedHashMap<String, Any?>, // external variables
-    val args: List<Any?>
+    val implicitReceivers: List<Any>, // previous scripts, etc.
+    val globals: Map<String, Any?>, // external variables
+    val constructorArgs: List<Any?>
 )
+

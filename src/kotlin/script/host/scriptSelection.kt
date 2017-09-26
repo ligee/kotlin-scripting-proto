@@ -1,4 +1,6 @@
-package kotlin.script
+package kotlin.script.host
+
+import kotlin.script.ScriptSource
 
 interface ScriptSelector {
 

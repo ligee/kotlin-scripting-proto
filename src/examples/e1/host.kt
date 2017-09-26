@@ -1,31 +1,29 @@
 package examples.e1
 
 import kotlin.script.*
+import kotlin.script.host.ScriptSelector
 import kotlin.script.jvm.*
 import kotlin.script.jvm.runners.BasicJvmScriptRunner
 
-class MyScriptAnalyzer : ScriptAnalyzer<JvmScriptMetadata> {
+class MyConfigurationExtractor : ConfigurationExtractor<JvmCompilerConfiguration>, ScriptSelector {
 
-    override fun extractMetadata(script: ScriptSource): ResultWithDiagnostics<JvmScriptMetadata> {
-        return JvmScriptMetadata(
-                null,
-                MyScript::class,
-                emptyList(),
-                emptyList(),
-                ScriptMetadata.Restrictions(),
-                emptyList(),
-                emptyList(),
-                emptyList()
-        ).asSuccess()
+    override val fileExtension: String = "myscript.kts"
+
+    override fun isKnownScript(script: ScriptSource): Boolean = true
+
+    override fun extractCompilerConfiguration(script: ScriptSource, providedDeclarations: ProvidedDeclarations): ResultWithDiagnostics<JvmCompilerConfiguration> {
+//        return JvmCompilerConfiguration(
+//        ).asSuccess()
+        return ResultWithDiagnostics.Failure(ScriptDiagnostic("not implemented yet"))
     }
 }
 
 fun makeScriptingHost(compilerProxy: KJVMCompilerProxy, cache: CompiledJvmScriptsCache, environment: ScriptEvaluationEnvironment)
-  : JvmBasicScriptingHost<MyScript, JvmScriptMetadata, ScriptEvaluationEnvironment, JvmCompiledScript<MyScript>>
+  : JvmBasicScriptingHost<MyScript, JvmCompilerConfiguration, ScriptEvaluationEnvironment, JvmCompiledScript<MyScript>>
 {
-    val scriptCompiler = JvmScriptCompiler<JvmScriptMetadata, ScriptEvaluationEnvironment>(compilerProxy, cache)
+    val scriptCompiler = JvmScriptCompiler<JvmCompilerConfiguration>(compilerProxy, cache)
     return JvmBasicScriptingHost(
-            MyScriptAnalyzer(),
+            MyConfigurationExtractor(),
             scriptCompiler,
             BasicJvmScriptRunner(),
             environment)
