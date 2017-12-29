@@ -2,8 +2,7 @@ package kotlin.script.jvm
 
 import kotlin.reflect.KClass
 import kotlin.script.*
-import kotlin.script.host.BasicScriptingHost
-import kotlin.script.host.ScriptRunner
+import kotlin.script.host.*
 
 open class JvmBasicScriptingHost<ScriptBase: Any, CC: JvmCompilerConfiguration, out E: ScriptEvaluationEnvironment, in CS: JvmCompiledScript<ScriptBase>>(
         configurationExtractor: ConfigurationExtractor<CC>,

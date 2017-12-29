@@ -1,4 +1,4 @@
-package examples.e1
+package org.jetbrains.kotlin.script.examples.jvm1
 
 import kotlin.script.*
 import kotlin.script.host.ScriptSelector

@@ -4,8 +4,6 @@ import kotlin.script.ResultWithDiagnostics
 import kotlin.script.ScriptDiagnostic
 import kotlin.script.ScriptEvaluationEnvironment
 import kotlin.script.host.ScriptRunner
-import kotlin.script.jvm.JvmCompiledScript
-import kotlin.script.jvm.JvmCompilerConfiguration
 
 open class BasicJvmScriptRunner<in ScriptBase: Any>
     : ScriptRunner<ScriptBase>

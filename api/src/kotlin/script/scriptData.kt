@@ -20,7 +20,12 @@ interface ScriptSourceFragments {
 
 open class ProvidedDeclarations(
         val implicitReceivers: List<KType>, // previous scripts, etc.
-        val globals: Map<String, KType> // external variables
+        val contextVariables: Map<String, KType> // external variables
+        // Q: do we need context constants and/or types here, e.g.
+        // val contextConstants: Map<String, Any?> // or with KType as well
+        // val contextTypes: List<KType> // additional (to the classpath) types provided by the environment
+        // alternatively:
+        // val contextDeclarations: List<Tuple<DeclarationKind, String?, KType, Any?> // kind, name, type, value
 )
 
 open class ScriptSignature(
@@ -31,14 +36,14 @@ open class ScriptSignature(
 open class ResolvingRestrictions {
     data class Rule(
             val allow: Boolean,
-            val pattern: String // TODO: elaborate
+            val pattern: String // FQN wildcard
     )
 
     val rules: Iterable<Rule> = arrayListOf()
 }
 
 interface ScriptDependency {
-    // anything generic here?
+    // Q: anything generic here?
 }
 
 interface CompilerConfiguration {
@@ -55,12 +60,11 @@ interface CompilerConfiguration {
 
     val dependencies: Iterable<ScriptDependency>
 
-    val compilerOptions: Iterable<String> // CommonCompilerOptions?
+    val compilerOptions: Iterable<String> // Q: CommonCompilerOptions instead?
 }
 
 open class ScriptEvaluationEnvironment(
     val implicitReceivers: List<Any>, // previous scripts, etc.
-    val globals: Map<String, Any?>, // external variables
+    val contextVariables: Map<String, Any?>, // external variables
     val constructorArgs: List<Any?>
 )
-
