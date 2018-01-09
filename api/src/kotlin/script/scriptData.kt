@@ -7,7 +7,7 @@ interface ScriptSource {
     val location: URL?
     val text: String?
 
-    data class Position(val line: Int, val col: Int)
+    data class Position(val line: Int, val col: Int, val absolutePos: Int? = null)
     data class Range(val start: Position, val end: Position)
     data class Location(val start: Position, val end: Position? = null)
 }
@@ -15,7 +15,7 @@ interface ScriptSource {
 interface ScriptSourceFragments {
     val originalSource: ScriptSource
 
-    val fragments: Iterable<ScriptSource.Range>?
+    val fragments: List<ScriptSource.Range>?
 }
 
 open class ProvidedDeclarations(
@@ -46,7 +46,7 @@ interface ScriptDependency {
     // Q: anything generic here?
 }
 
-interface CompilerConfiguration {
+interface ScriptCompilerConfiguration {
 
     val scriptSourceFragments: ScriptSourceFragments
 
@@ -61,10 +61,13 @@ interface CompilerConfiguration {
     val dependencies: Iterable<ScriptDependency>
 
     val compilerOptions: Iterable<String> // Q: CommonCompilerOptions instead?
+
+    val previousScriptCompilerConfiguration: ScriptCompilerConfiguration?
 }
 
 open class ScriptEvaluationEnvironment(
-    val implicitReceivers: List<Any>, // previous scripts, etc.
+    val implicitReceivers: List<Any>,
     val contextVariables: Map<String, Any?>, // external variables
-    val constructorArgs: List<Any?>
+    val constructorArgs: List<Any?>,
+    val previousScriptEvaluationEnvironment: ScriptEvaluationEnvironment?
 )

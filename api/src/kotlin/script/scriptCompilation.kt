@@ -1,12 +1,12 @@
 package kotlin.script
 
 
-interface ConfigurationExtractor<out CC: CompilerConfiguration> {
+interface ConfigurationExtractor<out CC: ScriptCompilerConfiguration> {
 
     fun extractCompilerConfiguration(script: ScriptSource, providedDeclarations: ProvidedDeclarations): ResultWithDiagnostics<CC>
 }
 
-interface ScriptCompiler<in CC: CompilerConfiguration> {
+interface ScriptCompiler<in CC: ScriptCompilerConfiguration> {
 
     fun compile(configuration: CC): ResultWithDiagnostics<CompiledScript<*>>
 

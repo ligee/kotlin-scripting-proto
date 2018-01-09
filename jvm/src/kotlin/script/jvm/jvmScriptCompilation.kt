@@ -14,7 +14,7 @@ class JvmCompiledScript<ScriptBase: Any>(
 }
 
 
-class JvmScriptCompiler<in CC: JvmCompilerConfiguration>(
+open class JvmScriptCompiler<in CC: JvmScriptCompilerConfiguration>(
         val compilerProxy: KJVMCompilerProxy,
         val cache: CompiledJvmScriptsCache
 ) : ScriptCompiler<CC> {
@@ -33,5 +33,5 @@ interface CompiledJvmScriptsCache {
 }
 
 interface KJVMCompilerProxy {
-    fun compile(scriptCompilerConfiguration: JvmCompilerConfiguration): ResultWithDiagnostics<CompiledScript<*>>
+    fun compile(scriptCompilerConfiguration: JvmScriptCompilerConfiguration): ResultWithDiagnostics<CompiledScript<*>>
 }

@@ -4,7 +4,7 @@ import kotlin.reflect.KClass
 import kotlin.script.*
 import kotlin.script.host.*
 
-open class JvmBasicScriptingHost<ScriptBase: Any, CC: JvmCompilerConfiguration, out E: ScriptEvaluationEnvironment, in CS: JvmCompiledScript<ScriptBase>>(
+open class JvmBasicScriptingHost<ScriptBase: Any, CC: JvmScriptCompilerConfiguration, out E: ScriptEvaluationEnvironment, in CS: JvmCompiledScript<ScriptBase>>(
         configurationExtractor: ConfigurationExtractor<CC>,
         compiler: JvmScriptCompiler<CC>,
         runner: ScriptRunner<ScriptBase>,
@@ -21,7 +21,7 @@ class ReplEvalEnvironment(
         emptyList())
 
 
-open class JvmReplScriptingHost<ScriptBase: Any, CC: JvmCompilerConfiguration>(
+open class JvmReplScriptingHost<ScriptBase: Any, CC: JvmScriptCompilerConfiguration>(
         configurationExtractor: ConfigurationExtractor<CC>,
         compiler: JvmScriptCompiler<CC>,
         runner: ScriptRunner<ScriptBase>,

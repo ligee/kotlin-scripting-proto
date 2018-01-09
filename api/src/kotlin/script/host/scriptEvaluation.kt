@@ -9,7 +9,7 @@ interface ScriptRunner<in ScriptBase: Any> {
 }
 
 
-abstract class BasicScriptingHost<ScriptBase: Any, CC: CompilerConfiguration, out E: ScriptEvaluationEnvironment, in CS: CompiledScript<ScriptBase>>(
+abstract class BasicScriptingHost<ScriptBase: Any, CC: ScriptCompilerConfiguration, out E: ScriptEvaluationEnvironment, in CS: CompiledScript<ScriptBase>>(
         val configurationExtractor: ConfigurationExtractor<CC>,
         val compiler: ScriptCompiler<CC>,
         val runner: ScriptRunner<ScriptBase>
@@ -18,19 +18,26 @@ abstract class BasicScriptingHost<ScriptBase: Any, CC: CompilerConfiguration, ou
 
     open fun eval(script: ScriptSource, providedDeclarations: ProvidedDeclarations, args: Iterable<Any?>): ResultWithDiagnostics<Any?> {
         val config = configurationExtractor.extractCompilerConfiguration(script, providedDeclarations)
-        if (config is ResultWithDiagnostics.Failure) return config
-
-        val compiled = compiler.compile(config.value!!)
-        if (compiled is ResultWithDiagnostics.Failure) return compiled
-
-        val obj = compiled.value!!.instantiate(environment)
-        if (obj is ResultWithDiagnostics.Failure) return obj
-
-        val res = runner.run(obj.value!! as ScriptBase, args)
-
-        updateEnvironment(config.value!!, obj.value as ScriptBase, res)
-
-        return res
+        return when (config) {
+            is ResultWithDiagnostics.Failure -> config
+            is ResultWithDiagnostics.Success -> {
+                val compiled = compiler.compile(config.value!!)
+                when (compiled) {
+                    is ResultWithDiagnostics.Failure -> compiled
+                    is ResultWithDiagnostics.Success -> {
+                        val obj = compiled.value!!.instantiate(environment)
+                        when (obj) {
+                            is ResultWithDiagnostics.Failure -> obj
+                            is ResultWithDiagnostics.Success -> {
+                                runner.run(obj.value!! as ScriptBase, args).also {
+                                    updateEnvironment(config.value, obj.value as ScriptBase, it)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     open fun updateEnvironment(config: CC, scriptObject: ScriptBase, res: Any?) {}
