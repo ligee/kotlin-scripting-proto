@@ -18,7 +18,8 @@ class ReplEvalEnvironment(
 ) : ScriptEvaluationEnvironment(
         mutableReceivers,
         bindings,
-        emptyList())
+        emptyList(),
+        null)
 
 
 open class JvmReplScriptingHost<ScriptBase: Any, CC: JvmScriptCompilerConfiguration>(

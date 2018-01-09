@@ -3,5 +3,7 @@ rootProject.name = "kotlin-scripting"
 include(
     "api",
     "jvm",
-    "examples:jvm-1")
+    "api-2",
+    "jvm-2",
+    "examples:jvm-2-example-1")
 

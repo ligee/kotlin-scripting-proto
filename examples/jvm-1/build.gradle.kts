@@ -1,1 +1,0 @@
-plugins {    java}apply {    plugin("kotlin")}dependencies {    compile(project(":api"))    compile(project(":jvm"))}java.sourceSets["main"].java {    srcDir("src")}
