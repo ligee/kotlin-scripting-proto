@@ -29,7 +29,7 @@ sealed class ResultWithDiagnostics<out R: Any?> {
 fun<R: Any> R.asSuccess(): ResultWithDiagnostics.Success<R> = ResultWithDiagnostics.Success(this)
 
 fun Throwable.asDiagnostics(customMessage: String? = null, location: ScriptSource.Location? = null): ScriptDiagnostic =
-        ScriptDiagnostic(customMessage ?: message ?: "unknown exception", ScriptDiagnostic.Severity.ERROR, location, this)
+        ScriptDiagnostic(customMessage ?: message ?: "$this", ScriptDiagnostic.Severity.ERROR, location, this)
 
 fun String.asErrorDiagnostics(location: ScriptSource.Location? = null): ScriptDiagnostic =
         ScriptDiagnostic(this, ScriptDiagnostic.Severity.ERROR, location)

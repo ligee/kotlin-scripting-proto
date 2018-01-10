@@ -1,20 +1,34 @@
 package kotlin.script.jvm.impl
 
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.util.text.StringUtil
+import com.intellij.openapi.vfs.CharsetToolkit
+import com.intellij.psi.PsiFileFactory
+import com.intellij.psi.impl.PsiFileFactoryImpl
+import com.intellij.testFramework.LightVirtualFile
+import org.jetbrains.kotlin.analyzer.AnalysisResult
+import org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
+import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
-import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
-import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
-import org.jetbrains.kotlin.cli.jvm.compiler.KotlinToJVMBytecodeCompiler
+import org.jetbrains.kotlin.cli.jvm.compiler.*
 import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoots
 import org.jetbrains.kotlin.cli.jvm.config.addJvmSdkRoots
+import org.jetbrains.kotlin.codegen.ClassBuilderFactories
+import org.jetbrains.kotlin.codegen.DefaultCodegenFactory
 import org.jetbrains.kotlin.codegen.GeneratedClassLoader
+import org.jetbrains.kotlin.codegen.KotlinCodegenFacade
 import org.jetbrains.kotlin.codegen.state.GenerationState
 import org.jetbrains.kotlin.config.*
+import org.jetbrains.kotlin.fileClasses.javaFileFacadeFqName
+import org.jetbrains.kotlin.idea.KotlinLanguage
+import org.jetbrains.kotlin.parsing.KotlinParserDefinition
+import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.utils.PathUtil
+import sun.security.pkcs11.Secmod
 import kotlin.reflect.KClass
 import kotlin.script.*
 import kotlin.script.dependencies.Environment
@@ -70,11 +84,52 @@ class KJVMCompilerImpl: KJVMCompilerProxy<JvmScriptCompileConfiguration> {
             }
             val environment = KotlinCoreEnvironment.createForProduction(disposable, kotlinCompilerConfiguration, EnvironmentConfigFiles.JVM_CONFIG_FILES)
 
-            val generationState = KotlinToJVMBytecodeCompiler.analyzeAndGenerate(environment) ?: return failure()
+            val analyzerWithCompilerReport = AnalyzerWithCompilerReport(messageCollector)
 
-            val script = environment.getSourceFiles()[0].script ?: return failure("Script must be parsed".asErrorDiagnostics())
+            val psiFileFactory: PsiFileFactoryImpl = PsiFileFactory.getInstance(environment.project) as PsiFileFactoryImpl
+            val scriptText = scriptCompilerConfiguration.scriptSourceFragments.getMergedScriptText()
+            val scriptFileName = "script" // TODO: extract from file/url if available
+            val virtualFile = LightVirtualFile("$scriptFileName${KotlinParserDefinition.STD_SCRIPT_EXT}", KotlinLanguage.INSTANCE, StringUtil.convertLineSeparators(scriptText)).apply {
+                charset = CharsetToolkit.UTF8_CHARSET
+            }
+            val psiFile: KtFile = psiFileFactory.trySetupPsiForFile(virtualFile, KotlinLanguage.INSTANCE, true, false) as KtFile?
+                    ?: return failure("Unable to make PSI file from script".asErrorDiagnostics())
 
-            val res = KJVMCompiledScript<Any>(scriptCompilerConfiguration, generationState, script.fqName.asString())
+            val sourceFiles = listOf(psiFile)
+
+            analyzerWithCompilerReport.analyzeAndReport(sourceFiles) {
+                val project = environment.project
+                val sourcesOnly = TopDownAnalyzerFacadeForJVM.newModuleSearchScope(project, sourceFiles)
+                TopDownAnalyzerFacadeForJVM.analyzeFilesWithJavaIntegration(
+                        project,
+                        sourceFiles,
+                        CliLightClassGenerationSupport.NoScopeRecordCliBindingTrace(),
+                        environment.configuration,
+                        environment::createPackagePartProvider,
+                        sourceModuleSearchScope = sourcesOnly
+                )
+            }
+            val analysisResult = analyzerWithCompilerReport.analysisResult
+
+            if (!analysisResult.shouldGenerateCode) return failure("no code to generate".asErrorDiagnostics())
+            if (analysisResult.isError()) return failure()
+
+            val generationState = GenerationState.Builder(
+                    psiFile.project,
+                    ClassBuilderFactories.binaries(false),
+                    analysisResult.moduleDescriptor,
+                    analysisResult.bindingContext,
+                    sourceFiles,
+                    kotlinCompilerConfiguration
+            ).build()
+            generationState.beforeCompile()
+            KotlinCodegenFacade.generatePackage(
+                    generationState,
+                    psiFile.script!!.containingKtFile.packageFqName,
+                    setOf(psiFile.script!!.containingKtFile),
+                    org.jetbrains.kotlin.codegen.CompilationErrorHandler.THROW_EXCEPTION)
+
+            val res = KJVMCompiledScript<Any>(scriptCompilerConfiguration, generationState, scriptFileName.capitalize())
 
             return ResultWithDiagnostics.Success(res)
         }

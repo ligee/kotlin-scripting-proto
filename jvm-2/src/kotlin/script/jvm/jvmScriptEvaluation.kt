@@ -4,7 +4,7 @@ import kotlin.reflect.KClass
 import kotlin.script.*
 import kotlin.script.host.*
 
-open class JvmBasicScriptingHost<ScriptBase: Any, CC: JvmScriptCompileConfiguration, out E: ScriptEvaluationEnvironment, in CS: JvmCompiledScript<ScriptBase, CC>>(
+open class JvmBasicScriptingHost<ScriptBase: Any, CC: JvmScriptCompileConfiguration, out E: ScriptEvaluationEnvironment, in CS: CompiledScript<ScriptBase, CC>>(
         configurationExtractor: ScriptConfigurator<CC>,
         compiler: JvmScriptCompiler<CC>,
         runner: ScriptRunner<ScriptBase>,
@@ -12,8 +12,8 @@ open class JvmBasicScriptingHost<ScriptBase: Any, CC: JvmScriptCompileConfigurat
 ): BasicScriptingHost<ScriptBase, CC, E, CS>(configurationExtractor, compiler, runner)
 
 open class JvmScriptEvaluationEnvironment(
-        val baseClassLoader: ClassLoader?,
-        bindings: LinkedHashMap<String, Any?>,
+        val baseClassLoader: ClassLoader? = null,
+        bindings: LinkedHashMap<String, Any?> = LinkedHashMap(),
         val mutableReceivers: MutableList<KClass<*>> = arrayListOf(),
         previousEvaluationEnvironment: JvmScriptEvaluationEnvironment? = null
 ) : ScriptEvaluationEnvironment(

@@ -1,6 +1,6 @@
 package kotlin.script
 
-fun ScriptSourceFragments.isWholeFile(): Boolean = fragments?.isEmpty() ?: false
+fun ScriptSourceFragments.isWholeFile(): Boolean = fragments?.isEmpty() ?: true
 
 fun ScriptSource.getScriptText(): String = when {
     text != null -> text!!

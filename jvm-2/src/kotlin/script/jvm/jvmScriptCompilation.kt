@@ -1,19 +1,6 @@
 package kotlin.script.jvm
 
-import kotlin.reflect.KClass
 import kotlin.script.*
-
-class JvmCompiledScript<ScriptBase: Any, out CC: JvmScriptCompileConfiguration>(
-        val compiledClass: KClass<ScriptBase>,
-        override val configuration: CC
-) : CompiledScript<ScriptBase, CC> {
-    override fun instantiate(scriptEvaluationEnvironment: ScriptEvaluationEnvironment): ResultWithDiagnostics<ScriptBase> {
-        // construct class
-        // return res
-        return ResultWithDiagnostics.Failure(ScriptDiagnostic("not implemented yet"))
-    }
-}
-
 
 open class JvmScriptCompiler<CC: JvmScriptCompileConfiguration>(
         val compilerProxy: KJVMCompilerProxy<CC>,
@@ -33,15 +20,15 @@ open class JvmScriptCompiler<CC: JvmScriptCompileConfiguration>(
 
         return compilerProxy.compile(configuration, configurator).also {
             if (it is ResultWithDiagnostics.Success) {
-                cache.store(it.value as JvmCompiledScript<*, CC>)
+                cache.store(it.value as CompiledScript<*, CC>)
             }
         }
     }
 }
 
 interface CompiledJvmScriptsCache<CC: JvmScriptCompileConfiguration> {
-    operator fun get(script: ScriptSourceFragments): JvmCompiledScript<*, CC>?
-    fun store(compiledScript: JvmCompiledScript<*, CC>): Unit
+    operator fun get(script: ScriptSourceFragments): CompiledScript<*, CC>?
+    fun store(compiledScript: CompiledScript<*, CC>): Unit
 }
 
 interface KJVMCompilerProxy<CC: JvmScriptCompileConfiguration> {
@@ -49,7 +36,7 @@ interface KJVMCompilerProxy<CC: JvmScriptCompileConfiguration> {
 }
 
 class DummyCompiledJvmScriptCache: CompiledJvmScriptsCache<JvmScriptCompileConfiguration> {
-    override operator fun get(script: ScriptSourceFragments): JvmCompiledScript<*, JvmScriptCompileConfiguration>? = null
-    override fun store(compiledScript: JvmCompiledScript<*, JvmScriptCompileConfiguration>): Unit {}
+    override operator fun get(script: ScriptSourceFragments): CompiledScript<*, JvmScriptCompileConfiguration>? = null
+    override fun store(compiledScript: CompiledScript<*, JvmScriptCompileConfiguration>): Unit {}
 }
 
