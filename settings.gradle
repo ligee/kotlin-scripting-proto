@@ -1,9 +1,8 @@
 rootProject.name = "kotlin-scripting"
 
-include(
-    "api",
+include "api",
     "jvm",
     "api-2",
     "jvm-2",
-    "examples:jvm-2-example-1")
+    "examples:jvm-2-example-1"
 
