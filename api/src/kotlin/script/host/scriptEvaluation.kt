@@ -9,9 +9,9 @@ interface ScriptRunner<in ScriptBase: Any> {
 }
 
 
-abstract class BasicScriptingHost<ScriptBase: Any, CC: ScriptCompileConfiguration, out E: ScriptEvaluationEnvironment, in CS: CompiledScript<ScriptBase, CC>>(
-        val configurator: ScriptConfigurator<CC>,
-        val compiler: ScriptCompiler<CC>,
+abstract class BasicScriptingHost<ScriptBase: Any, out E: ScriptEvaluationEnvironment, in CS: CompiledScript<ScriptBase>> (
+        val configurator: ScriptConfigurator,
+        val compiler: ScriptCompiler,
         val runner: ScriptRunner<ScriptBase>
 ) {
     abstract val environment: E
@@ -34,5 +34,5 @@ abstract class BasicScriptingHost<ScriptBase: Any, CC: ScriptCompileConfiguratio
         }
     }
 
-    open fun updateEnvironment(config: CC, scriptObject: ScriptBase, res: Any?) {}
+    open fun updateEnvironment(config: ScriptCompileConfiguration, scriptObject: ScriptBase, res: Any?) {}
 }

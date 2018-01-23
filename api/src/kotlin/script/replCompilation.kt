@@ -4,19 +4,19 @@ interface ScriptReplCompiler<CC: ScriptCompileConfiguration> {
 
     fun compile(mutableState: ReplStageState<*>,
                 replStatement: ReplStatement,
-                configurator: ScriptConfigurator<CC>): ResultWithDiagnostics<CompiledReplStatement<*>>
+                configurator: ScriptConfigurator): ResultWithDiagnostics<CompiledReplStatement<*>>
 }
 
 interface ScriptReplInteractiveCompiler<CC: ScriptCompileConfiguration> : ScriptReplCompiler<CC> {
 
     fun checkIsComplete(mutableState: ReplStageState<*>,
                         replStatement: ReplStatement,
-                        configurator: ScriptConfigurator<CC>): ResultWithDiagnostics<Boolean>
+                        configurator: ScriptConfigurator): ResultWithDiagnostics<Boolean>
 
     fun suggestAutocompletion(mutableState: ReplStageState<*>,
                               replStatement: ReplStatement,
                               atLocation: ScriptSource.Location,
-                              configurator: ScriptConfigurator<CC>): ResultWithDiagnostics<List<String>>
+                              configurator: ScriptConfigurator): ResultWithDiagnostics<List<String>>
 }
 
 interface CompiledReplStatement<out ScriptBase: Any> {

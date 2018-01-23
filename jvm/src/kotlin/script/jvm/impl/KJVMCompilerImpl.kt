@@ -36,12 +36,10 @@ import kotlin.script.dependencies.ScriptContents
 import kotlin.script.experimental.dependencies.DependenciesResolver
 import kotlin.script.experimental.dependencies.ScriptDependencies
 import kotlin.script.experimental.dependencies.ScriptReport
-import kotlin.script.jvm.JvmScriptCompileConfiguration
-import kotlin.script.jvm.JvmScriptEvaluationEnvironment
-import kotlin.script.jvm.KJVMCompilerProxy
+import kotlin.script.jvm.*
 
-class KJVMCompiledScript<out ScriptBase: Any>(override val configuration: JvmScriptCompileConfiguration, val generationState: GenerationState, val scriptClassFQName: String)
-    : CompiledScript<ScriptBase, JvmScriptCompileConfiguration> {
+class KJVMCompiledScript<out ScriptBase: Any>(override val configuration: ScriptCompileConfiguration, val generationState: GenerationState, val scriptClassFQName: String)
+    : CompiledScript<ScriptBase> {
 
     override fun instantiate(scriptEvaluationEnvironment: ScriptEvaluationEnvironment): ResultWithDiagnostics<ScriptBase> {
         val env = scriptEvaluationEnvironment as? JvmScriptEvaluationEnvironment
@@ -60,13 +58,13 @@ class KJVMCompiledScript<out ScriptBase: Any>(override val configuration: JvmScr
     }
 }
 
-class KJVMCompilerImpl: KJVMCompilerProxy<JvmScriptCompileConfiguration> {
+class KJVMCompilerImpl: KJVMCompilerProxy {
 
-    override fun compile(scriptCompilerConfiguration: JvmScriptCompileConfiguration,
-                         configurator: ScriptConfigurator<JvmScriptCompileConfiguration>): ResultWithDiagnostics<CompiledScript<*, JvmScriptCompileConfiguration>> {
+    override fun compile(scriptCompilerConfiguration: ScriptCompileConfiguration,
+                         configurator: ScriptConfigurator): ResultWithDiagnostics<CompiledScript<*>> {
         val messageCollector = ScriptDiagnosticsMessageCollector()
 
-        fun failure(vararg diagnostics: ScriptDiagnostic): ResultWithDiagnostics.Failure<CompiledScript<*, JvmScriptCompileConfiguration>> =
+        fun failure(vararg diagnostics: ScriptDiagnostic): ResultWithDiagnostics.Failure<CompiledScript<*>> =
                 ResultWithDiagnostics.Failure(*messageCollector.diagnostics.toTypedArray(), *diagnostics)
 
         try {
@@ -75,8 +73,8 @@ class KJVMCompilerImpl: KJVMCompilerProxy<JvmScriptCompileConfiguration> {
                 add(JVMConfigurationKeys.SCRIPT_DEFINITIONS, BridgeScriptDefinition(scriptCompilerConfiguration, configurator))
                 put<MessageCollector>(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, messageCollector)
                 put(JVMConfigurationKeys.RETAIN_OUTPUT_IN_MEMORY, true)
-                addJvmSdkRoots(PathUtil.getJdkClassesRootsFromJre(scriptCompilerConfiguration.javaHomeDir.canonicalPath))
-                addJvmClasspathRoots(scriptCompilerConfiguration.dependencies.flatMap { it.classpath })
+                addJvmSdkRoots(PathUtil.getJdkClassesRootsFromJre(scriptCompilerConfiguration[JvmScriptCompileConfigurationParams.javaHomeDir].canonicalPath))
+                addJvmClasspathRoots(scriptCompilerConfiguration[ScriptCompileConfigurationParams.dependencies].flatMap { (it as JvmDependency).classpath })
                 put(CommonConfigurationKeys.MODULE_NAME, "kotlin-script")
                 languageVersionSettings = LanguageVersionSettingsImpl(
                         LanguageVersion.LATEST_STABLE, ApiVersion.LATEST_STABLE, mapOf(AnalysisFlag.skipMetadataVersionCheck to true)
@@ -87,7 +85,7 @@ class KJVMCompilerImpl: KJVMCompilerProxy<JvmScriptCompileConfiguration> {
             val analyzerWithCompilerReport = AnalyzerWithCompilerReport(messageCollector)
 
             val psiFileFactory: PsiFileFactoryImpl = PsiFileFactory.getInstance(environment.project) as PsiFileFactoryImpl
-            val scriptText = scriptCompilerConfiguration.scriptSourceFragments.getMergedScriptText()
+            val scriptText = scriptCompilerConfiguration[ScriptCompileConfigurationParams.scriptSourceFragments].getMergedScriptText()
             val scriptFileName = "script" // TODO: extract from file/url if available
             val virtualFile = LightVirtualFile("$scriptFileName${KotlinParserDefinition.STD_SCRIPT_EXT}", KotlinLanguage.INSTANCE, StringUtil.convertLineSeparators(scriptText)).apply {
                 charset = CharsetToolkit.UTF8_CHARSET
@@ -178,8 +176,8 @@ internal class ParsedScriptDataFromScriptContentsAdapter(val scriptContents: Scr
     override val annotations: Iterable<Annotation> get() = scriptContents.annotations
 }
 
-internal class BridgeDependenciesResolver(val scriptCompilerConfiguration: JvmScriptCompileConfiguration,
-                                          val scriptConfigurator: ScriptConfiguratorExt<JvmScriptCompileConfiguration>
+internal class BridgeDependenciesResolver(val scriptCompilerConfiguration: ScriptCompileConfiguration,
+                                          val scriptConfigurator: ScriptConfigurator
 ) : DependenciesResolver {
 
     override fun resolve(scriptContents: ScriptContents, environment: Environment): DependenciesResolver.ResolveResult {
@@ -190,8 +188,8 @@ internal class BridgeDependenciesResolver(val scriptCompilerConfiguration: JvmSc
             when (res) {
                 is ResultWithDiagnostics.Failure -> DependenciesResolver.ResolveResult.Failure(res.reports.map { ScriptReport(it.message) /* TODO: consider more precise mapping */ })
                 is ResultWithDiagnostics.Success -> DependenciesResolver.ResolveResult.Success(ScriptDependencies(
-                        classpath =  res.value!!.dependencies . flatMap { it.classpath }, // TODO: maybe it should return only increment from the initial config
-                        imports = res.value!!.importedPackages.toList()))
+                        classpath =  res.value!![ScriptCompileConfigurationParams.dependencies ]. flatMap { (it as JvmDependency).classpath }, // TODO: maybe it should return only increment from the initial config
+                        imports = res.value!![ScriptCompileConfigurationParams.importedPackages].toList()))
             }
         }
         catch (e: Throwable) {
@@ -200,10 +198,9 @@ internal class BridgeDependenciesResolver(val scriptCompilerConfiguration: JvmSc
     }
 }
 
-internal class BridgeScriptDefinition(scriptCompilerConfiguration: JvmScriptCompileConfiguration, scriptConfigurator: ScriptConfigurator<JvmScriptCompileConfiguration>)
-    : KotlinScriptDefinition(scriptCompilerConfiguration.scriptSignature.scriptBase as KClass<out Any>)
+internal class BridgeScriptDefinition(scriptCompilerConfiguration: ScriptCompileConfiguration, scriptConfigurator: ScriptConfigurator)
+    : KotlinScriptDefinition(scriptCompilerConfiguration[ScriptCompileConfigurationParams.scriptSignature].scriptBase as KClass<out Any>)
 {
     override val dependencyResolver: DependenciesResolver =
-            if (scriptConfigurator is ScriptConfiguratorExt<JvmScriptCompileConfiguration>) BridgeDependenciesResolver(scriptCompilerConfiguration, scriptConfigurator)
-            else DependenciesResolver.NoDependencies
+            BridgeDependenciesResolver(scriptCompilerConfiguration, scriptConfigurator)
 }

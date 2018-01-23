@@ -8,5 +8,5 @@ import kotlin.script.ScriptConfigurator
 annotation class ScriptDefinition(
         val name: String,
         val selector: KClass<out ScriptSelector>,
-        val configurator: KClass<out ScriptConfigurator<*>>,
+        val configurator: KClass<out ScriptConfigurator>,
         val runner: KClass<out ScriptRunner<*>>)

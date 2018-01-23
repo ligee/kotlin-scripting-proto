@@ -45,24 +45,24 @@ interface ScriptDependency {
     // Q: anything generic here?
 }
 
-interface ScriptCompileConfiguration {
+object ScriptCompileConfigurationParams {
 
-    val scriptSourceFragments: ScriptSourceFragments
+    val scriptSourceFragments = TypedKey<ScriptSourceFragments>("scriptSourceFragments")
 
-    val scriptSignature: ScriptSignature
+    val scriptSignature = TypedKey<ScriptSignature>("scriptSignature")
 
-    val importedPackages: Iterable<String>
+    val importedPackages = TypedKey<Iterable<String>>("importedPackages")
 
-    val restrictions: ResolvingRestrictions
+    val restrictions = TypedKey<ResolvingRestrictions>("restrictions")
 
-    val importedScripts: Iterable<ScriptSource>
+    val importedScripts = TypedKey<Iterable<ScriptSource>>("importedScripts")
 
-    val dependencies: Iterable<ScriptDependency>
+    val dependencies = TypedKey<Iterable<ScriptDependency>>("dependencies")
 
-    val compilerOptions: Iterable<String> // Q: CommonCompilerOptions instead?
-
-    val previousScriptCompilerConfiguration: ScriptCompileConfiguration?
+    val compilerOptions = TypedKey<Iterable<String>>("compilerOptions") // Q: CommonCompilerOptions instead?
 }
+
+typealias ScriptCompileConfiguration = HeterogeneousMap
 
 interface ParsedScriptData {
     val annotations: Iterable<Annotation>

@@ -1,14 +1,14 @@
 package kotlin.script
 
-interface ScriptCompiler<CC: ScriptCompileConfiguration> {
+interface ScriptCompiler {
 
-    fun compile(script: ScriptSource, configurator: ScriptConfigurator<CC>): ResultWithDiagnostics<CompiledScript<*, CC>>
+    fun compile(script: ScriptSource, configurator: ScriptConfigurator): ResultWithDiagnostics<CompiledScript<*>>
 }
 
 
-interface CompiledScript<out ScriptBase: Any, out CC: ScriptCompileConfiguration> {
+interface CompiledScript<out ScriptBase: Any> {
 
-    val configuration: CC
+    val configuration: ScriptCompileConfiguration
 
     fun instantiate(scriptEvaluationEnvironment: ScriptEvaluationEnvironment): ResultWithDiagnostics<ScriptBase>
 }

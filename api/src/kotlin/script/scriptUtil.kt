@@ -33,3 +33,14 @@ fun ScriptSourceFragments.getMergedScriptText(): String {
     }
 }
 
+data class TypedKey<T>(val name: String)
+
+class HeterogeneousMap(val data: MutableMap<TypedKey<*>, Any?> = hashMapOf()) {
+    constructor(vararg pairs: Pair<TypedKey<*>, Any?>) : this(hashMapOf(*pairs))
+}
+
+operator fun<T> HeterogeneousMap.get(key: TypedKey<T>): T = data[key] as T
+
+fun<T> HeterogeneousMap.getOptional(key: TypedKey<T>): T? = data[key] as T?
+
+fun<T> HeterogeneousMap.put(key: TypedKey<T>, value: T?) = data.put(key, value)

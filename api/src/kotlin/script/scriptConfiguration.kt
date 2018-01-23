@@ -1,12 +1,9 @@
 package kotlin.script
 
-interface ScriptConfigurator<CC: ScriptCompileConfiguration> {
+interface ScriptConfigurator {
 
-    fun getCompilerConfiguration(script: ScriptSource): ResultWithDiagnostics<CC>
+    fun getCompilerConfiguration(script: ScriptSource): ResultWithDiagnostics<ScriptCompileConfiguration>
+
+    fun updateCompilerConfigurationFromParsed(config: ScriptCompileConfiguration, parsedScriptData: ParsedScriptData): ResultWithDiagnostics<ScriptCompileConfiguration>
 }
 
-
-interface ScriptConfiguratorExt<CC: ScriptCompileConfiguration>: ScriptConfigurator<CC> {
-
-    fun updateCompilerConfigurationFromParsed(config: CC, parsedScriptData: ParsedScriptData): ResultWithDiagnostics<CC>
-}

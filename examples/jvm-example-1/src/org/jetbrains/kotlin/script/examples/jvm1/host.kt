@@ -12,8 +12,7 @@ import kotlin.script.jvm.*
 import kotlin.script.jvm.impl.KJVMCompilerImpl
 import kotlin.script.jvm.runners.BasicJvmScriptRunner
 
-class MyConfigurationExtractor : ScriptConfigurator<JvmScriptCompileConfiguration>, ScriptSelector {
-
+class MyConfigurationExtractor : ScriptConfigurator, ScriptSelector {
     override val fileExtension: String = ".kts"
 
     override fun isKnownScript(script: ScriptSource): Boolean = true
@@ -27,21 +26,23 @@ class MyConfigurationExtractor : ScriptConfigurator<JvmScriptCompileConfiguratio
             ?: throw Exception("Unable to get path to the script base")
     }
 
-    override fun getCompilerConfiguration(script: ScriptSource): ResultWithDiagnostics<JvmScriptCompileConfiguration> {
-        return JvmScriptCompileConfiguration(
-                scriptSourceFragments = ScriptSourceFragments(script, null),
-                scriptSignature = ScriptSignature(MyScript::class, ProvidedDeclarations()),
-                importedPackages = emptyList(),
-                restrictions = ResolvingRestrictions(),
-                importedScripts = emptyList(),
-                dependencies = listOf(
-                        JvmScriptCompileConfiguration.JvmDependency(listOf(stdlibFile)),
-                        JvmScriptCompileConfiguration.JvmDependency(listOf(selfFile))),
-                compilerOptions = emptyList(),
-                javaHomeDir = File(System.getProperty("java.home")),
-                previousScriptCompilerConfiguration = null
+    override fun getCompilerConfiguration(script: ScriptSource): ResultWithDiagnostics<ScriptCompileConfiguration> {
+        return ScriptCompileConfiguration(
+                ScriptCompileConfigurationParams.scriptSourceFragments to ScriptSourceFragments(script, null),
+                ScriptCompileConfigurationParams.scriptSignature to ScriptSignature(MyScript::class, ProvidedDeclarations()),
+                ScriptCompileConfigurationParams.importedPackages to emptyList<String>(),
+                ScriptCompileConfigurationParams.restrictions to ResolvingRestrictions(),
+                ScriptCompileConfigurationParams.importedScripts to emptyList<String>(),
+                ScriptCompileConfigurationParams.dependencies to listOf(
+                        JvmDependency(listOf(stdlibFile)),
+                        JvmDependency(listOf(selfFile))),
+                ScriptCompileConfigurationParams.compilerOptions to emptyList<String>(),
+                JvmScriptCompileConfigurationParams.javaHomeDir to File(System.getProperty("java.home"))
         ).asSuccess()
     }
+
+    override fun updateCompilerConfigurationFromParsed(config: ScriptCompileConfiguration, parsedScriptData: ParsedScriptData): ResultWithDiagnostics<ScriptCompileConfiguration> =
+            config.asSuccess()
 }
 
 fun main(vararg args: String) {
@@ -60,7 +61,7 @@ fun main(vararg args: String) {
         val host = JvmBasicScriptingHost(
                 configurationExtractor,
                 scriptCompiler,
-                BasicJvmScriptRunner(),
+                BasicJvmScriptRunner<MyScript>(),
                 JvmScriptEvaluationEnvironment(baseClassLoader))
 
         val script = object : ScriptSource {
