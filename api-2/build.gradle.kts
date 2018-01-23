@@ -1,1 +1,0 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompileplugins {    java}apply {    plugin("kotlin")}dependencies {    compile("org.jetbrains.kotlin:kotlin-stdlib:${rootProject.extra["kotlinVersion"] as String}")}java.sourceSets["main"].java {    srcDir("src")}tasks.withType<KotlinCompile> {    kotlinOptions.freeCompilerArgs += "-Xallow-kotlin-package"}

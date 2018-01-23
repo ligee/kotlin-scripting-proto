@@ -1,12 +1,12 @@
 package kotlin.script.host
 
 import kotlin.reflect.KClass
-import kotlin.script.ConfigurationExtractor
+import kotlin.script.ScriptConfigurator
 
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class ScriptDefinition(
         val name: String,
         val selector: KClass<out ScriptSelector>,
-        val extractor: KClass<out ConfigurationExtractor<*>>,
+        val configurator: KClass<out ScriptConfigurator<*>>,
         val runner: KClass<out ScriptRunner<*>>)

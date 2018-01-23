@@ -9,31 +9,25 @@ interface ScriptRunner<in ScriptBase: Any> {
 }
 
 
-abstract class BasicScriptingHost<ScriptBase: Any, CC: ScriptCompilerConfiguration, out E: ScriptEvaluationEnvironment, in CS: CompiledScript<ScriptBase>>(
-        val configurationExtractor: ConfigurationExtractor<CC>,
+abstract class BasicScriptingHost<ScriptBase: Any, CC: ScriptCompileConfiguration, out E: ScriptEvaluationEnvironment, in CS: CompiledScript<ScriptBase, CC>>(
+        val configurator: ScriptConfigurator<CC>,
         val compiler: ScriptCompiler<CC>,
         val runner: ScriptRunner<ScriptBase>
 ) {
     abstract val environment: E
 
     open fun eval(script: ScriptSource, providedDeclarations: ProvidedDeclarations, args: Iterable<Any?>): ResultWithDiagnostics<Any?> {
-        val config = configurationExtractor.extractCompilerConfiguration(script, providedDeclarations)
-        return when (config) {
-            is ResultWithDiagnostics.Failure -> config
+        val compiled = compiler.compile(script, configurator)
+        return when (compiled) {
+            is ResultWithDiagnostics.Failure -> compiled
             is ResultWithDiagnostics.Success -> {
-                val compiled = compiler.compile(config.value!!)
-                when (compiled) {
-                    is ResultWithDiagnostics.Failure -> compiled
+                val obj = compiled.value!!.instantiate(environment)
+                when (obj) {
+                    is ResultWithDiagnostics.Failure -> obj
                     is ResultWithDiagnostics.Success -> {
-                        val obj = compiled.value!!.instantiate(environment)
-                        when (obj) {
-                            is ResultWithDiagnostics.Failure -> obj
-                            is ResultWithDiagnostics.Success -> {
-                                runner.run(obj.value!! as ScriptBase, args).also {
-                                    updateEnvironment(config.value, obj.value as ScriptBase, it)
+                        runner.run(obj.value!! as ScriptBase, args).also {
+                                    updateEnvironment(compiled.value.configuration, obj.value as ScriptBase, it)
                                 }
-                            }
-                        }
                     }
                 }
             }

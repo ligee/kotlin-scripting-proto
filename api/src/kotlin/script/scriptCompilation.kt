@@ -1,19 +1,14 @@
 package kotlin.script
 
+interface ScriptCompiler<CC: ScriptCompileConfiguration> {
 
-interface ConfigurationExtractor<out CC: ScriptCompilerConfiguration> {
-
-    fun extractCompilerConfiguration(script: ScriptSource, providedDeclarations: ProvidedDeclarations): ResultWithDiagnostics<CC>
+    fun compile(script: ScriptSource, configurator: ScriptConfigurator<CC>): ResultWithDiagnostics<CompiledScript<*, CC>>
 }
 
-interface ScriptCompiler<in CC: ScriptCompilerConfiguration> {
 
-    fun compile(configuration: CC): ResultWithDiagnostics<CompiledScript<*>>
+interface CompiledScript<out ScriptBase: Any, out CC: ScriptCompileConfiguration> {
 
-    // TODO: interfaces for generic metadata extraction, e.g annotations, lexing
-}
-
-interface CompiledScript<out ScriptBase: Any> {
+    val configuration: CC
 
     fun instantiate(scriptEvaluationEnvironment: ScriptEvaluationEnvironment): ResultWithDiagnostics<ScriptBase>
 }

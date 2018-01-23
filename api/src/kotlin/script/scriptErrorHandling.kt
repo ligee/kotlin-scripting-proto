@@ -21,13 +21,15 @@ sealed class ResultWithDiagnostics<out R: Any?> {
             override val reports: List<ScriptDiagnostic>
     ) : ResultWithDiagnostics<R>() {
         constructor(vararg reports: ScriptDiagnostic) : this(reports.asList())
+
+        fun<T> convert(): ResultWithDiagnostics.Failure<T> = ResultWithDiagnostics.Failure(reports)
     }
 }
 
 fun<R: Any> R.asSuccess(): ResultWithDiagnostics.Success<R> = ResultWithDiagnostics.Success(this)
 
 fun Throwable.asDiagnostics(customMessage: String? = null, location: ScriptSource.Location? = null): ScriptDiagnostic =
-        ScriptDiagnostic(customMessage ?: message ?: "unknown exception", ScriptDiagnostic.Severity.ERROR, location, this)
+        ScriptDiagnostic(customMessage ?: message ?: "$this", ScriptDiagnostic.Severity.ERROR, location, this)
 
 fun String.asErrorDiagnostics(location: ScriptSource.Location? = null): ScriptDiagnostic =
         ScriptDiagnostic(this, ScriptDiagnostic.Severity.ERROR, location)

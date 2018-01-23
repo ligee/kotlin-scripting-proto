@@ -6,38 +6,73 @@ import com.intellij.openapi.vfs.CharsetToolkit
 import com.intellij.psi.PsiFileFactory
 import com.intellij.psi.impl.PsiFileFactoryImpl
 import com.intellij.testFramework.LightVirtualFile
+import org.jetbrains.kotlin.analyzer.AnalysisResult
+import org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
+import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
-import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
-import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
+import org.jetbrains.kotlin.cli.jvm.compiler.*
 import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoots
 import org.jetbrains.kotlin.cli.jvm.config.addJvmSdkRoots
+import org.jetbrains.kotlin.codegen.ClassBuilderFactories
+import org.jetbrains.kotlin.codegen.DefaultCodegenFactory
+import org.jetbrains.kotlin.codegen.GeneratedClassLoader
+import org.jetbrains.kotlin.codegen.KotlinCodegenFacade
+import org.jetbrains.kotlin.codegen.state.GenerationState
 import org.jetbrains.kotlin.config.*
+import org.jetbrains.kotlin.fileClasses.javaFileFacadeFqName
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.parsing.KotlinParserDefinition
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.script.KotlinScriptDefinition
 import org.jetbrains.kotlin.utils.PathUtil
-import kotlin.script.*
-import kotlin.script.jvm.JvmScriptCompilerConfiguration
-import kotlin.script.jvm.KJVMCompilerProxy
+import sun.security.pkcs11.Secmod
 import kotlin.reflect.KClass
+import kotlin.script.*
 import kotlin.script.dependencies.Environment
 import kotlin.script.dependencies.ScriptContents
 import kotlin.script.experimental.dependencies.DependenciesResolver
 import kotlin.script.experimental.dependencies.ScriptDependencies
+import kotlin.script.experimental.dependencies.ScriptReport
+import kotlin.script.jvm.JvmScriptCompileConfiguration
+import kotlin.script.jvm.JvmScriptEvaluationEnvironment
+import kotlin.script.jvm.KJVMCompilerProxy
 
-class KJVMCompilerImpl(val scriptDefinition: KotlinScriptDefinition): KJVMCompilerProxy {
-    override fun compile(scriptCompilerConfiguration: JvmScriptCompilerConfiguration): ResultWithDiagnostics<CompiledScript<*>> {
+class KJVMCompiledScript<out ScriptBase: Any>(override val configuration: JvmScriptCompileConfiguration, val generationState: GenerationState, val scriptClassFQName: String)
+    : CompiledScript<ScriptBase, JvmScriptCompileConfiguration> {
+
+    override fun instantiate(scriptEvaluationEnvironment: ScriptEvaluationEnvironment): ResultWithDiagnostics<ScriptBase> {
+        val env = scriptEvaluationEnvironment as? JvmScriptEvaluationEnvironment
+                ?: return ResultWithDiagnostics.Failure("Expected JvmScriptEvaluationEnvironment, but got ${scriptEvaluationEnvironment.javaClass.name}".asErrorDiagnostics())
+
+        return try {
+            val classLoader = GeneratedClassLoader(generationState.factory, env.baseClassLoader)
+
+            val clazz = classLoader.loadClass(scriptClassFQName)
+            (clazz as? ScriptBase)?.asSuccess()
+                    ?: ResultWithDiagnostics.Failure("Compiled class expected to be a subclass of the <ScriptBase>, but got ${clazz.javaClass.name}".asErrorDiagnostics())
+        }
+        catch (e: Throwable) {
+            ResultWithDiagnostics.Failure(ScriptDiagnostic("Unable to instantiate class $scriptClassFQName", exception = e))
+        }
+    }
+}
+
+class KJVMCompilerImpl: KJVMCompilerProxy<JvmScriptCompileConfiguration> {
+
+    override fun compile(scriptCompilerConfiguration: JvmScriptCompileConfiguration,
+                         configurator: ScriptConfigurator<JvmScriptCompileConfiguration>): ResultWithDiagnostics<CompiledScript<*, JvmScriptCompileConfiguration>> {
         val messageCollector = ScriptDiagnosticsMessageCollector()
-        fun failure(vararg diagnostics: ScriptDiagnostic): ResultWithDiagnostics.Failure<CompiledScript<*>> =
+
+        fun failure(vararg diagnostics: ScriptDiagnostic): ResultWithDiagnostics.Failure<CompiledScript<*, JvmScriptCompileConfiguration>> =
                 ResultWithDiagnostics.Failure(*messageCollector.diagnostics.toTypedArray(), *diagnostics)
+
         try {
             val disposable = Disposer.newDisposable()
             val kotlinCompilerConfiguration = org.jetbrains.kotlin.config.CompilerConfiguration().apply {
-                add(JVMConfigurationKeys.SCRIPT_DEFINITIONS, BridgeScriptDefinition(scriptCompilerConfiguration))
+                add(JVMConfigurationKeys.SCRIPT_DEFINITIONS, BridgeScriptDefinition(scriptCompilerConfiguration, configurator))
                 put<MessageCollector>(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, messageCollector)
                 put(JVMConfigurationKeys.RETAIN_OUTPUT_IN_MEMORY, true)
                 addJvmSdkRoots(PathUtil.getJdkClassesRootsFromJre(scriptCompilerConfiguration.javaHomeDir.canonicalPath))
@@ -48,6 +83,9 @@ class KJVMCompilerImpl(val scriptDefinition: KotlinScriptDefinition): KJVMCompil
                 )
             }
             val environment = KotlinCoreEnvironment.createForProduction(disposable, kotlinCompilerConfiguration, EnvironmentConfigFiles.JVM_CONFIG_FILES)
+
+            val analyzerWithCompilerReport = AnalyzerWithCompilerReport(messageCollector)
+
             val psiFileFactory: PsiFileFactoryImpl = PsiFileFactory.getInstance(environment.project) as PsiFileFactoryImpl
             val scriptText = scriptCompilerConfiguration.scriptSourceFragments.getMergedScriptText()
             val scriptFileName = "script" // TODO: extract from file/url if available
@@ -57,7 +95,43 @@ class KJVMCompilerImpl(val scriptDefinition: KotlinScriptDefinition): KJVMCompil
             val psiFile: KtFile = psiFileFactory.trySetupPsiForFile(virtualFile, KotlinLanguage.INSTANCE, true, false) as KtFile?
                     ?: return failure("Unable to make PSI file from script".asErrorDiagnostics())
 
-            return failure("Not implemented yet".asErrorDiagnostics())
+            val sourceFiles = listOf(psiFile)
+
+            analyzerWithCompilerReport.analyzeAndReport(sourceFiles) {
+                val project = environment.project
+                val sourcesOnly = TopDownAnalyzerFacadeForJVM.newModuleSearchScope(project, sourceFiles)
+                TopDownAnalyzerFacadeForJVM.analyzeFilesWithJavaIntegration(
+                        project,
+                        sourceFiles,
+                        CliLightClassGenerationSupport.NoScopeRecordCliBindingTrace(),
+                        environment.configuration,
+                        environment::createPackagePartProvider,
+                        sourceModuleSearchScope = sourcesOnly
+                )
+            }
+            val analysisResult = analyzerWithCompilerReport.analysisResult
+
+            if (!analysisResult.shouldGenerateCode) return failure("no code to generate".asErrorDiagnostics())
+            if (analysisResult.isError()) return failure()
+
+            val generationState = GenerationState.Builder(
+                    psiFile.project,
+                    ClassBuilderFactories.binaries(false),
+                    analysisResult.moduleDescriptor,
+                    analysisResult.bindingContext,
+                    sourceFiles,
+                    kotlinCompilerConfiguration
+            ).build()
+            generationState.beforeCompile()
+            KotlinCodegenFacade.generatePackage(
+                    generationState,
+                    psiFile.script!!.containingKtFile.packageFqName,
+                    setOf(psiFile.script!!.containingKtFile),
+                    org.jetbrains.kotlin.codegen.CompilationErrorHandler.THROW_EXCEPTION)
+
+            val res = KJVMCompiledScript<Any>(scriptCompilerConfiguration, generationState, scriptFileName.capitalize())
+
+            return ResultWithDiagnostics.Success(res)
         }
         catch (ex: Throwable) {
             return failure(ex.asDiagnostics())
@@ -100,14 +174,36 @@ class ScriptDiagnosticsMessageCollector : MessageCollector {
 
 // A bridge to the current scripting
 
-class BridgeDependenciesResolver(val scriptCompilerConfiguration: JvmScriptCompilerConfiguration) : DependenciesResolver {
+internal class ParsedScriptDataFromScriptContentsAdapter(val scriptContents: ScriptContents) : ParsedScriptData {
+    override val annotations: Iterable<Annotation> get() = scriptContents.annotations
+}
+
+internal class BridgeDependenciesResolver(val scriptCompilerConfiguration: JvmScriptCompileConfiguration,
+                                          val scriptConfigurator: ScriptConfiguratorExt<JvmScriptCompileConfiguration>
+) : DependenciesResolver {
+
     override fun resolve(scriptContents: ScriptContents, environment: Environment): DependenciesResolver.ResolveResult {
-        return DependenciesResolver.ResolveResult.Success(ScriptDependencies(
-                classpath = scriptCompilerConfiguration.dependencies.flatMap { it.classpath },
-                imports = scriptCompilerConfiguration.importedPackages.toList()))
+
+        return try {
+            val res = scriptConfigurator.updateCompilerConfigurationFromParsed(scriptCompilerConfiguration, ParsedScriptDataFromScriptContentsAdapter(scriptContents))
+
+            when (res) {
+                is ResultWithDiagnostics.Failure -> DependenciesResolver.ResolveResult.Failure(res.reports.map { ScriptReport(it.message) /* TODO: consider more precise mapping */ })
+                is ResultWithDiagnostics.Success -> DependenciesResolver.ResolveResult.Success(ScriptDependencies(
+                        classpath =  res.value!!.dependencies . flatMap { it.classpath }, // TODO: maybe it should return only increment from the initial config
+                        imports = res.value!!.importedPackages.toList()))
+            }
+        }
+        catch (e: Throwable) {
+            DependenciesResolver.ResolveResult.Failure(ScriptReport(e.message ?: "unknown error $e"))
+        }
     }
 }
 
-class BridgeScriptDefinition(scriptCompilerConfiguration: JvmScriptCompilerConfiguration) : KotlinScriptDefinition(scriptCompilerConfiguration.scriptSignature.scriptBase.classifier as KClass<out Any>) {
-    override val dependencyResolver: DependenciesResolver = BridgeDependenciesResolver(scriptCompilerConfiguration)
+internal class BridgeScriptDefinition(scriptCompilerConfiguration: JvmScriptCompileConfiguration, scriptConfigurator: ScriptConfigurator<JvmScriptCompileConfiguration>)
+    : KotlinScriptDefinition(scriptCompilerConfiguration.scriptSignature.scriptBase as KClass<out Any>)
+{
+    override val dependencyResolver: DependenciesResolver =
+            if (scriptConfigurator is ScriptConfiguratorExt<JvmScriptCompileConfiguration>) BridgeDependenciesResolver(scriptCompilerConfiguration, scriptConfigurator)
+            else DependenciesResolver.NoDependencies
 }

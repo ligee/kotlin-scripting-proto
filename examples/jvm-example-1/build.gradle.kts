@@ -1,0 +1,1 @@
+plugins {    java}apply {    plugin("kotlin")}dependencies {    compile(project(":api"))    compile(project(":jvm"))    compile("org.jetbrains.kotlin:kotlin-script-util:${rootProject.extra["kotlinVersion"] as String}")    testCompile("junit:junit:4.12")}java.sourceSets["main"].java {    srcDir("src")}java.sourceSets["test"].java {    srcDir("test")}

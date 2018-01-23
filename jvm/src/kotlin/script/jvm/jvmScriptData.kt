@@ -3,7 +3,7 @@ package kotlin.script.jvm
 import java.io.File
 import kotlin.script.*
 
-open class JvmScriptCompilerConfiguration(
+open class JvmScriptCompileConfiguration(
         override val scriptSourceFragments: ScriptSourceFragments,
         override val scriptSignature: ScriptSignature,
         override val importedPackages: Iterable<String>,
@@ -12,8 +12,8 @@ open class JvmScriptCompilerConfiguration(
         override val dependencies: Iterable<JvmDependency>,
         override val compilerOptions: Iterable<String>,
         val javaHomeDir: File,
-        override val previousScriptCompilerConfiguration: ScriptCompilerConfiguration?
-): ScriptCompilerConfiguration
+        override val previousScriptCompilerConfiguration: ScriptCompileConfiguration?
+): ScriptCompileConfiguration
 {
     class JvmDependency(val classpath: Iterable<File>): ScriptDependency
 }

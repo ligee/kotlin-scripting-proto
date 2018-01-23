@@ -1,6 +1,7 @@
 package kotlin.script
 
 import java.net.URL
+import kotlin.reflect.KClass
 import kotlin.reflect.KType
 
 interface ScriptSource {
@@ -12,15 +13,13 @@ interface ScriptSource {
     data class Location(val start: Position, val end: Position? = null)
 }
 
-interface ScriptSourceFragments {
-    val originalSource: ScriptSource
-
-    val fragments: List<ScriptSource.Range>?
-}
+open class ScriptSourceFragments(
+    val originalSource: ScriptSource,
+    val fragments: List<ScriptSource.Range>?)
 
 open class ProvidedDeclarations(
-        val implicitReceivers: List<KType>, // previous scripts, etc.
-        val contextVariables: Map<String, KType> // external variables
+        val implicitReceivers: List<KType> = emptyList(), // previous scripts, etc.
+        val contextVariables: Map<String, KType> = emptyMap() // external variables
         // Q: do we need context constants and/or types here, e.g.
         // val contextConstants: Map<String, Any?> // or with KType as well
         // val contextTypes: List<KType> // additional (to the classpath) types provided by the environment
@@ -29,7 +28,7 @@ open class ProvidedDeclarations(
 )
 
 open class ScriptSignature(
-        val scriptBase: KType,
+        val scriptBase: KClass<*>,
         val providedDeclarations: ProvidedDeclarations
 )
 
@@ -46,7 +45,7 @@ interface ScriptDependency {
     // Q: anything generic here?
 }
 
-interface ScriptCompilerConfiguration {
+interface ScriptCompileConfiguration {
 
     val scriptSourceFragments: ScriptSourceFragments
 
@@ -62,7 +61,11 @@ interface ScriptCompilerConfiguration {
 
     val compilerOptions: Iterable<String> // Q: CommonCompilerOptions instead?
 
-    val previousScriptCompilerConfiguration: ScriptCompilerConfiguration?
+    val previousScriptCompilerConfiguration: ScriptCompileConfiguration?
+}
+
+interface ParsedScriptData {
+    val annotations: Iterable<Annotation>
 }
 
 open class ScriptEvaluationEnvironment(
