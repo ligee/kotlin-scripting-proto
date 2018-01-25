@@ -23,9 +23,10 @@ abstract class BasicScriptingHost<ScriptBase: Any, out E: ScriptEvaluationEnviro
             is ResultWithDiagnostics.Success -> {
                 val obj = compiled.value!!.instantiate(environment)
                 when (obj) {
-                    is ResultWithDiagnostics.Failure -> obj
+                    is ResultWithDiagnostics.Failure -> compiled.reports + obj
                     is ResultWithDiagnostics.Success -> {
-                        runner.run(obj.value!! as ScriptBase, args).also {
+                        compiled.reports +
+                                runner.run(obj.value!! as ScriptBase, args).also {
                                     updateEnvironment(compiled.value.configuration, obj.value as ScriptBase, it)
                                 }
                     }

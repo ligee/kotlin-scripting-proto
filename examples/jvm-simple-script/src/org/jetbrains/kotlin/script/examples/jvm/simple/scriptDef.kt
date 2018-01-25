@@ -1,4 +1,4 @@
-package org.jetbrains.kotlin.script.examples.jvm1
+package org.jetbrains.kotlin.script.examples.jvm.simple
 
 import kotlin.script.host.ScriptDefinition
 import kotlin.script.jvm.runners.BasicJvmScriptRunner

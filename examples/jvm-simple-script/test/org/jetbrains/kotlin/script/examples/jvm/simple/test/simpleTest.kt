@@ -1,6 +1,6 @@
-package org.jetbrains.kotlin.script.examples.jvm1.test
+package org.jetbrains.kotlin.script.examples.jvm.simple.test
 
-import org.jetbrains.kotlin.script.examples.jvm1.main
+import org.jetbrains.kotlin.script.examples.jvm.simple.main
 import org.junit.Test
 
 class SimpleTest {

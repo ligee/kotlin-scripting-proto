@@ -1,6 +1,5 @@
-package org.jetbrains.kotlin.script.examples.jvm1
+package org.jetbrains.kotlin.script.examples.jvm.simple
 
-import com.intellij.util.lang.UrlClassLoader
 import org.jetbrains.kotlin.script.util.KotlinJars
 import org.jetbrains.kotlin.utils.PathUtil
 import java.io.File
@@ -26,7 +25,7 @@ class MyConfigurationExtractor : ScriptConfigurator, ScriptSelector {
             ?: throw Exception("Unable to get path to the script base")
     }
 
-    override fun getCompilerConfiguration(script: ScriptSource): ResultWithDiagnostics<ScriptCompileConfiguration> {
+    override fun getInitialConfiguration(script: ScriptSource): ResultWithDiagnostics<ScriptCompileConfiguration> {
         return ScriptCompileConfiguration(
                 ScriptCompileConfigurationParams.scriptSourceFragments to ScriptSourceFragments(script, null),
                 ScriptCompileConfigurationParams.scriptSignature to ScriptSignature(MyScript::class, ProvidedDeclarations()),
@@ -41,7 +40,7 @@ class MyConfigurationExtractor : ScriptConfigurator, ScriptSelector {
         ).asSuccess()
     }
 
-    override fun updateCompilerConfigurationFromParsed(config: ScriptCompileConfiguration, parsedScriptData: ParsedScriptData): ResultWithDiagnostics<ScriptCompileConfiguration> =
+    override fun getUpdatedConfiguration(config: ScriptCompileConfiguration, processedScriptData: ProcessedScriptData): ResultWithDiagnostics<ScriptCompileConfiguration> =
             config.asSuccess()
 }
 

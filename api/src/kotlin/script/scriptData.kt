@@ -13,9 +13,11 @@ interface ScriptSource {
     data class Location(val start: Position, val end: Position? = null)
 }
 
+data class ScriptSourceNamedFragment(val name: String?, val range: ScriptSource.Range)
+
 open class ScriptSourceFragments(
     val originalSource: ScriptSource,
-    val fragments: List<ScriptSource.Range>?)
+    val fragments: List<ScriptSourceNamedFragment>?)
 
 open class ProvidedDeclarations(
         val implicitReceivers: List<KType> = emptyList(), // previous scripts, etc.
@@ -25,6 +27,7 @@ open class ProvidedDeclarations(
         // val contextTypes: List<KType> // additional (to the classpath) types provided by the environment
         // alternatively:
         // val contextDeclarations: List<Tuple<DeclarationKind, String?, KType, Any?> // kind, name, type, value
+        // OR: it should be a HeterogeneousMap too
 )
 
 open class ScriptSignature(
@@ -60,13 +63,21 @@ object ScriptCompileConfigurationParams {
     val dependencies = TypedKey<Iterable<ScriptDependency>>("dependencies")
 
     val compilerOptions = TypedKey<Iterable<String>>("compilerOptions") // Q: CommonCompilerOptions instead?
+
+    val updateConfigurationOnAnnotations = TypedKey<Iterable<KClass<out Annotation>>>("updateConfigurationOnAnnotations")
+
+    val updateConfigurationOnSections = TypedKey<Iterable<String>>("updateConfigurationOnSections")
 }
 
 typealias ScriptCompileConfiguration = HeterogeneousMap
 
-interface ParsedScriptData {
-    val annotations: Iterable<Annotation>
+object ProcessedScriptDataParams {
+    val annotations = TypedKey<Iterable<Annotation>>("annotations")
+
+    val fragments = TypedKey<Iterable<ScriptSourceNamedFragment>>("fragments")
 }
+
+typealias ProcessedScriptData = HeterogeneousMap
 
 open class ScriptEvaluationEnvironment(
     val implicitReceivers: List<Any>,

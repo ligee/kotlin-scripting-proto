@@ -8,7 +8,7 @@ open class JvmScriptCompiler(
 ) : ScriptCompiler {
 
     override fun compile(script: ScriptSource, configurator: ScriptConfigurator): ResultWithDiagnostics<CompiledScript<*>> {
-        val configuration = configurator.getCompilerConfiguration(script).let {
+        val configuration = configurator.getInitialConfiguration(script).let {
             when (it) {
                 is ResultWithDiagnostics.Failure -> return it.convert()
                 is ResultWithDiagnostics.Success -> it.value ?: return ResultWithDiagnostics.Failure("Null script compile configuration received".asErrorDiagnostics())

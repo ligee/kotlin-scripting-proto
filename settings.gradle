@@ -2,5 +2,6 @@ rootProject.name = "kotlin-scripting"
 
 include "api",
     "jvm",
-    "examples:jvm-example-1"
+    "examples:jvm-simple-script",
+    "examples:jvm-maven-deps"
 
